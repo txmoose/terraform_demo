@@ -1,5 +1,7 @@
 variable "secret_key" {}
 variable "access_key" {}
+variable "cf_email" {}
+variable "cf_token" {}
 
 # Configure aws with a default region
 provider "aws" {
@@ -8,9 +10,15 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Configure CloudFlare provider
+provider "cloudflare" {
+  email = "${var.cf_email}"
+  token = "${var.cf_token}"
+}
+
 # Create a demo s3 bucket
-resource "aws_s3_bucket" "moosedev_tf_website" {
-  bucket = "moosedev-tf-website"
+resource "aws_s3_bucket" "dev-txmoose-com" {
+  bucket = "dev.txmoose.com"
   acl = "public-read"
   policy = "${file("policy.json")}"
 
@@ -28,9 +36,18 @@ resource "aws_s3_bucket" "moosedev_tf_website" {
 
 # Upload object to our bucket
 resource "aws_s3_bucket_object" "object" {
-  bucket = "${aws_s3_bucket.moosedev_tf_website.id}"
+  bucket = "${aws_s3_bucket.dev-txmoose-com.id}"
   key = "index.html"
   source = "./index.html"
   content_type = "text/html"
   content_encoding = "text/html"
+}
+
+# Create a CloudFlare DNS record
+resource "cloudflare_record" "dev" {
+  domain = "txmoose.com"
+  name = "dev"
+  value = "${aws_s3_bucket.dev-txmoose-com.website_endpoint}"
+  type = "CNAME"
+  depends_on = ["aws_s3_bucket.dev-txmoose-com"]
 }
